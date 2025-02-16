@@ -200,21 +200,44 @@ impl RenderPipeline<'_> {
             };
 
             let initial_layer = dirty_canvas.save();
+
+            // Clip all elements with their corresponding viewports
+            let node_viewports = node_ref.get::<ViewportState>().unwrap();
+            // Only clip the element iself when it's paragraph because
+            // it will render the inner text spans on it's own, so if these spans overflow the paragraph,
+            // It is the paragraph job to make sure they are clipped
+            if !node_viewports.viewports.is_empty() && *tag == TagName::Paragraph {
+                element_utils.clip(layout_node, &node_ref, dirty_canvas, self.scale_factor);
+            }
+
+            for node_id in &node_viewports.viewports {
+                let node_ref = self.rdom.get(*node_id).unwrap();
+                let node_type = node_ref.node_type();
+                let Some(element_utils) = node_type.tag().and_then(|tag| tag.utils()) else {
+                    continue;
+                };
+                let layout_node = self.layout.get(*node_id).unwrap();
+                element_utils.clip(layout_node, &node_ref, dirty_canvas, self.scale_factor);
+            }
+
             let node_transform = &*node_ref.get::<TransformState>().unwrap();
 
             // Pass rotate effect to children
             for (id, rotate_degs) in &node_transform.rotations {
                 let layout_node = self.layout.get(*id).unwrap();
                 let area = layout_node.visible_area();
-                let mut matrix = Matrix::new_identity();
-                matrix.set_rotate(
+                let mut center = area.center();
+                if let Some(center_point) = node_transform.center_point {
+                    center.x += center_point.x;
+                    center.y += center_point.y;
+                }
+                dirty_canvas.concat(&Matrix::rotate_deg_pivot(
                     *rotate_degs,
-                    Some(Point {
-                        x: area.min_x() + area.width() / 2.0,
-                        y: area.min_y() + area.height() / 2.0,
-                    }),
-                );
-                dirty_canvas.concat(&matrix);
+                    Point {
+                        x: center.x,
+                        y: center.y,
+                    },
+                ));
             }
 
             // Apply inherited opacity effects
@@ -234,29 +257,20 @@ impl RenderPipeline<'_> {
             for (id, scale_x, scale_y) in &node_transform.scales {
                 let layout_node = self.layout.get(*id).unwrap();
                 let area = layout_node.visible_area();
-                let center = area.center();
+                let mut center = area.center();
+                if let Some(center_point) = node_transform.center_point {
+                    center.x += center_point.x;
+                    center.y += center_point.y;
+                }
                 dirty_canvas.translate((center.x, center.y));
                 dirty_canvas.scale((*scale_x, *scale_y));
                 dirty_canvas.translate((-center.x, -center.y));
             }
 
-            // Clip all elements with their corresponding viewports
-            let node_viewports = node_ref.get::<ViewportState>().unwrap();
-            // Only clip the element iself when it's paragraph because
-            // it will render the inner text spans on it's own, so if these spans overflow the paragraph,
-            // It is the paragraph job to make sure they are clipped
-            if !node_viewports.viewports.is_empty() && *tag == TagName::Paragraph {
-                element_utils.clip(layout_node, &node_ref, dirty_canvas, self.scale_factor);
-            }
-
-            for node_id in &node_viewports.viewports {
-                let node_ref = self.rdom.get(*node_id).unwrap();
-                let node_type = node_ref.node_type();
-                let Some(element_utils) = node_type.tag().and_then(|tag| tag.utils()) else {
-                    continue;
-                };
-                let layout_node = self.layout.get(*node_id).unwrap();
-                element_utils.clip(layout_node, &node_ref, dirty_canvas, self.scale_factor);
+            // Pass rotate effect to children
+            for (translate_x, translate_y) in &node_transform.translations {
+                println!("{translate_x} {translate_y}");
+                dirty_canvas.translate((*translate_x, *translate_y));
             }
 
             element_utils.render(

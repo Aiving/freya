@@ -78,6 +78,8 @@ def_element!(
         rotate,
         opacity,
         scale,
+        center_point,
+        translate,
 
         // Reference
         canvas_reference,
@@ -210,6 +212,8 @@ def_element!(
         // Transform
         rotate,
         opacity,
+        center_point,
+        translate,
 
         // Reference
         reference,
@@ -346,6 +350,8 @@ def_element!(
         // Transform
         rotate,
         opacity,
+        center_point,
+        translate,
 
         // Text Editing
         cursor_index,
@@ -484,6 +490,8 @@ def_element!(
         // Transform
         rotate,
         opacity,
+        center_point,
+        translate,
 
         // Image
         image_data,
@@ -606,6 +614,8 @@ def_element!(
         // Transform
         rotate,
         opacity,
+        center_point,
+        translate,
 
         // Svg
         color,

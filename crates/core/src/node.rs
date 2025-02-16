@@ -169,11 +169,13 @@ impl NodeState {
         ];
 
         let shadows = &self.style.shadows;
+
         for shadow in shadows {
             attributes.push(("shadow", AttributeType::Shadow(shadow)));
         }
 
         let borders = &self.style.borders;
+
         for border in borders {
             attributes.push(("border", AttributeType::Border(border)));
         }
@@ -182,6 +184,18 @@ impl NodeState {
 
         for text_shadow in text_shadows {
             attributes.push(("text_shadow", AttributeType::TextShadow(text_shadow)));
+        }
+
+        for opacity in &self.transform.opacities {
+            attributes.push(("opacity", AttributeType::Measure(*opacity)));
+        }
+
+        for (_, x, y) in &self.transform.scales {
+            attributes.push(("scale", AttributeType::Text(format!("{x} {y}"))));
+        }
+
+        if let Some(point) = &self.transform.center_point {
+            attributes.push(("center_point", AttributeType::Text(format!("{point:?}"))));
         }
 
         attributes

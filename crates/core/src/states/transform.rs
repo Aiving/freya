@@ -17,6 +17,7 @@ use freya_native_core::{
     SendAnyMap,
 };
 use freya_native_core_macro::partial_derive_state;
+use torin::prelude::Point2D;
 
 use crate::{
     custom_attributes::CustomAttributeValues,
@@ -35,9 +36,11 @@ use crate::{
 #[derive(Default, Clone, Debug, Component, PartialEq)]
 pub struct TransformState {
     pub node_id: NodeId,
+    pub center_point: Option<Point2D>,
     pub opacities: Vec<f32>,
     pub rotations: Vec<(NodeId, f32)>,
     pub scales: Vec<(NodeId, f32, f32)>,
+    pub translations: Vec<(f32, f32)>,
     pub aspect_ratio: AspectRatio,
     pub image_cover: ImageCover,
 }
@@ -93,6 +96,34 @@ impl ParseAttribute for TransformState {
                     self.image_cover = ImageCover::parse(value).map_err(|_| ParseError)?;
                 }
             }
+            AttributeName::CenterPoint => {
+                if let Some(value) = attr.value.as_text() {
+                    let Some((x, y)) = value.split_once(' ') else {
+                        return Err(ParseError);
+                    };
+
+                    let x = x.parse::<f32>().map_err(|_| ParseError)?;
+                    let y = y.parse::<f32>().map_err(|_| ParseError)?;
+
+                    self.center_point = Some(Point2D::new(x, y));
+                }
+            }
+            AttributeName::Translate => {
+                if let Some(value) = attr.value.as_text() {
+                    let (translate_x, translate_y) = if !value.trim().contains(' ') {
+                        let translate = value.parse::<f32>().map_err(|_| ParseError)?;
+                        (translate, translate)
+                    } else {
+                        let Some((translate_x, translate_y)) = value.split_once(' ') else {
+                            return Err(ParseError);
+                        };
+                        let translate_x = translate_x.parse::<f32>().map_err(|_| ParseError)?;
+                        let translate_y = translate_y.parse::<f32>().map_err(|_| ParseError)?;
+                        (translate_x, translate_y)
+                    };
+                    self.translations.push((translate_x, translate_y))
+                }
+            }
             _ => {}
         }
 
@@ -111,8 +142,10 @@ impl State<CustomAttributeValues> for TransformState {
     const NODE_MASK: NodeMaskBuilder<'static> =
         NodeMaskBuilder::new().with_attrs(AttributeMaskBuilder::Some(&[
             AttributeName::Rotate,
+            AttributeName::Translate,
             AttributeName::Opacity,
             AttributeName::Scale,
+            AttributeName::CenterPoint,
             AttributeName::AspectRatio,
             AttributeName::ImageCover,
         ]));

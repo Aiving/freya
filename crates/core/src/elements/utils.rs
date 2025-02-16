@@ -13,6 +13,7 @@ use torin::{
         AreaModel,
         CursorPoint,
         LayoutNode,
+        Point2D,
     },
     torin::Torin,
 };
@@ -125,15 +126,29 @@ pub trait ElementUtils {
 
         for (id, scale_x, scale_y) in &transform_state.scales {
             let layout_node = layout.get(*id).unwrap();
-            let center = layout_node.area.center();
+            let mut center = layout_node.area.center();
+            if let Some(center_point) = transform_state.center_point {
+                center.x += center_point.x;
+                center.y += center_point.y;
+            }
             drawing_area = drawing_area.translate(-center.to_vector());
             drawing_area = drawing_area.scale(*scale_x, *scale_y);
             drawing_area = drawing_area.translate(center.to_vector());
         }
 
+        for (translate_x, translate_y) in &transform_state.translations {
+            drawing_area =
+                drawing_area.translate(Point2D::new(*translate_x, *translate_y).to_vector());
+        }
+
         if !transform_state.rotations.is_empty() {
             let area = layout_node.visible_area();
-            drawing_area.max_area_when_rotated(area.center())
+            let mut center = area.center();
+            if let Some(center_point) = transform_state.center_point {
+                center.x += center_point.x;
+                center.y += center_point.y;
+            }
+            drawing_area.max_area_when_rotated(center)
         } else {
             drawing_area
         }
@@ -157,9 +172,10 @@ pub trait ElementUtils {
     ) -> bool {
         let element_check = self.element_needs_cached_area(node_ref, style_state);
 
-        let rotate_effect = !transform_state.rotations.is_empty();
+        let transform_effect =
+            !transform_state.rotations.is_empty() || !transform_state.translations.is_empty();
 
-        element_check || rotate_effect
+        element_check || transform_effect
     }
 }
 
